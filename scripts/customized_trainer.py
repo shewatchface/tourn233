@@ -85,7 +85,7 @@ class CustomEvalSaveCallback(TrainerCallback):
             elif when_to_eval["reason"] == "periodic":
                 control.should_evaluate = False
                 control.should_save = True
-                    self.save_only = True
+                self.save_only = True
         return control
 
 
