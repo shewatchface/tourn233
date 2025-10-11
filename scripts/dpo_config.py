@@ -227,11 +227,13 @@ def get_training_json(train_info: dict) -> dict:
     
     run_config["learning_rate"] *= train_info["reg_ratio"]
     run_cmd = get_run_cmd(run_config, run_config["gpu_nums"])
+    if run_config["disable_fa"] == "False":
+        run_cmd = run_cmd + " --padding_free True"
     train_request = deepcopy(train_info)
     train_request["save_before_remaining_time"] = 3
     train_request["min_steps"] = 100
     train_request["adjust_batch_size"] = False
-    train_request["periodic_save_steps"] = 300
+    train_request["periodic_save_steps"] = 400
     
     return {
         "train_request": train_request,

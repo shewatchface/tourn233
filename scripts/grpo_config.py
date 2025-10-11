@@ -1,65 +1,73 @@
-from model_utility import get_model_architecture, get_model_num_params, get_use_liger, disable_flash_attention, get_use_vllm, get_gradient_checkpointing, get_gpu_count
+from model_utility import (
+    get_model_architecture,
+    get_model_num_params,
+    get_use_liger,
+    disable_flash_attention,
+    get_use_vllm,
+    get_gradient_checkpointing,
+    get_gpu_count,
+)
 from copy import deepcopy
-from lrs_lookup import get_grpo_lr
-
+from lrs_lookup import get_grpo_lr, get_grpo_python_lr
+allow_find_lk_lr = True
 
 GRPO_CONFIG = {
     "0_1_b": {
-        "lr": 0.00015,
+        "lr": 8e-6,
         "distributed": "ddp",
         "gpu_count": 1,
         "batch_size": 40,
-        "vllm_gpu_memory_utilization": 0.4
+        "vllm_gpu_memory_utilization": 0.4,
     },
     "1_2_b": {
-        "lr": 7.5e-5,
+        "lr": 8e-6,
         "distributed": "ddp",
         "gpu_count": 1,
         "batch_size": 40,
-        "vllm_gpu_memory_utilization": 0.4
+        "vllm_gpu_memory_utilization": 0.4,
     },
     "2_4_b": {
-        "lr": 8e-5,
+        "lr": 8e-6,
         "distributed": "ddp",
         "gpu_count": 2,
         "batch_size": 42,
         "vllm_gpu_memory_utilization": 0.35,
-        "use_lora": True
+        "use_lora": True,
     },
     "4_5_b": {
-        "lr": 8e-5,
+        "lr": 6e-6,
         "distributed": "ddp",
         "gpu_count": 2,
         "batch_size": 42,
         "use_lora": True,
-        "vllm_gpu_memory_utilization": 0.4
+        "vllm_gpu_memory_utilization": 0.4,
     },
     "5_6_b": {
-        "lr": 6e-5,
+        "lr": 6e-6,
         "distributed": "ddp",
         "gpu_count": 2,
         "batch_size": 42,
         "use_lora": True,
-        "vllm_gpu_memory_utilization": 0.4
+        "vllm_gpu_memory_utilization": 0.4,
     },
     "6_9_b": {
-        "lr": 6e-5,
+        "lr": 6e-6,
         "distributed": "ddp",
         "gpu_count": 4,
         "batch_size": 24,
         "use_lora": True,
-        "vllm_gpu_memory_utilization": 0.5
+        "vllm_gpu_memory_utilization": 0.5,
     },
     "9_12_b": {
-        "lr": 6.5e-5,   
+        "lr": 6e-6,
         "distributed": "ddp",
         "gpu_count": 4,
         "use_lora": True,
         "batch_size": 16,
-        "vllm_gpu_memory_utilization": 0.6
+        "vllm_gpu_memory_utilization": 0.6,
     },
     "12_15_b": {
-        "lr": 8e-5,
+        "lr": 5e-6,
         "distributed": "ddp",
         "gpu_count": 4,
         "use_lora": True,
@@ -67,7 +75,7 @@ GRPO_CONFIG = {
         "vllm_gpu_memory_utilization": 0.8,
     },
     "15_20_b": {
-        "lr": 8e-5,
+        "lr": 5e-6,
         "distributed": "ddp",
         "gpu_count": 4,
         "use_lora": True,
@@ -76,25 +84,25 @@ GRPO_CONFIG = {
         "use_vllm": False,
     },
     "20_40_b": {
-        "lr": 8e-5,
+        "lr": 4e-6,
         "distributed": "ddp",
         "gpu_count": 8,
         "use_lora": True,
         "batch_size": 16,
         "vllm_gpu_memory_utilization": 0.6,
         "use_vllm": False,
-        "use_4bit": True
+        "use_4bit": True,
     },
     "40_80_b": {
-        "lr": 8e-5,
+        "lr": 3e-6,
         "distributed": "ddp",
         "gpu_count": 8,
         "use_lora": True,
         "batch_size": 2,
         "vllm_gpu_memory_utilization": 0.7,
         "use_vllm": False,
-        "use_4bit": True
-    }
+        "use_4bit": True,
+    },
 }
 
 for key in GRPO_CONFIG:
@@ -105,11 +113,18 @@ def if_contain_slow_reward_function(dataset_type: dict) -> bool:
     reward_functions = dataset_type["reward_functions"]
     for reward_func in reward_functions:
         func_def = reward_func["reward_func"]
-        keywords  = ["import langcheck", "from langcheck", "import detoxify", "from detoxify", "import textstat", "from textstat"]
+        keywords = [
+            "import langcheck",
+            "from langcheck",
+            "import detoxify",
+            "from detoxify",
+            "import textstat",
+            "from textstat",
+        ]
         if any(keyword in func_def for keyword in keywords):
             return True
     return False
-    
+
 
 def get_grpo_config(param_nums: int) -> dict:
     if param_nums < 1_000_000_000:
@@ -126,7 +141,7 @@ def get_grpo_config(param_nums: int) -> dict:
         return GRPO_CONFIG["6_9_b"]
     elif param_nums < 12_000_000_000:
         return GRPO_CONFIG["9_12_b"]
-    elif param_nums < 15_000_000_000:  
+    elif param_nums < 15_000_000_000:
         return GRPO_CONFIG["12_15_b"]
     elif param_nums < 20_000_000_000:
         return GRPO_CONFIG["15_20_b"]
@@ -141,8 +156,18 @@ def get_grpo_config(param_nums: int) -> dict:
             "distributed": "ds",
             "gpu_count": 8,
             "batch_size": 6,
-            "use_lora": True
+            "use_lora": True,
         }
+
+
+def contain_python_execution(dataset_type: dict) -> bool:
+    reward_functions = dataset_type["reward_functions"]
+    for reward_func in reward_functions:
+        func_def = reward_func["reward_func"]
+        keywords = ["sat_reward_function", "ded_reward_function", "abd_reward_function"]
+        if any(keyword in func_def for keyword in keywords):
+            return True
+    return False
 
 
 def get_run_cmd(config: dict, gpu_nums: int):
@@ -195,28 +220,31 @@ def get_run_cmd(config: dict, gpu_nums: int):
     --use_liger {use_liger} --num_generations {num_generations} --vllm_mode colocate --vllm_gpu_memory_utilization {vllm_gpu_memory_utilization} \
     --disable_fa {disable_fa}"""
     )
-    
+
     if config.get("use_lora", False):
         template += (
             " --use_peft --lora_r 128 --lora_alpha 256 --lora_target_modules all-linear"
         )
-    
+
     if config.get("use_vllm", True):
         template += " --use_vllm True"
     else:
         template += " --use_vllm False"
-    
+
     if run_type == "ds":
         template = template + """ --deepspeed ds_config/zero3.json"""
 
     for key, value in config.items():
         template = template.replace("{" + key + "}", str(value))
-    
+
     if config.get("tensor_parallel", False):
         template = template + f" --vllm_tensor_parallel_size {gpu_nums}"
-    
+
     if config.get("use_4bit", False):
-        template = template + " --load_in_4bit True --use_bnb_nested_quant True --bnb_4bit_quant_type nf4"
+        template = (
+            template
+            + " --load_in_4bit True --use_bnb_nested_quant True --bnb_4bit_quant_type nf4"
+        )
     return template
 
 
@@ -246,22 +274,21 @@ def get_training_json(train_info: dict) -> dict:
         "num_generations": 2,
         "use_vllm": get_use_vllm(model_architecture, model_name),
         "tensor_parallel": config.get("tensor_parallel", False),
-        "use_4bit": config.get("use_4bit", False)
+        "use_4bit": config.get("use_4bit", False),
     }
-    
+
     if model_name == "OpenAssistant/oasst-sft-4-pythia-12b-epoch-3.5":
         run_config["use_lora"] = True
-    
+
     if "starcoder" in model_name.lower():
         run_config["batch_size"] = int(run_config["batch_size"] / 1.5)
-    
+
     train_request = deepcopy(train_info)
     train_request["save_before_remaining_time"] = 3
     train_request["min_steps"] = 100
     train_request["adjust_batch_size"] = False
-    train_request["periodic_save_steps"] = 300
-    
-    
+    train_request["periodic_save_steps"] = 400
+
     if if_contain_slow_reward_function(train_info["dataset_type"]):
         train_request["save_before_remaining_time"] = 12
         if config["label"] == "0_1_b":
@@ -276,7 +303,9 @@ def get_training_json(train_info: dict) -> dict:
             run_config["batch_size"] = 16
         elif config["label"] == "6_9_b":
             run_config["batch_size"] = 16
-            if model_name == "unsloth/gemma-2-9b-it": # encounter OOM error with batch_size 12
+            if (
+                model_name == "unsloth/gemma-2-9b-it"
+            ):  # encounter OOM error with batch_size 12
                 run_config["batch_size"] = 8
         elif config["label"] == "9_12_b":
             run_config["batch_size"] = 16
@@ -285,48 +314,47 @@ def get_training_json(train_info: dict) -> dict:
         elif config["label"] == "15_20_b":
             run_config["batch_size"] = 2
         elif config["label"] == "20_40_b":
-            run_config["batch_size"] = 16 # this is high because we use 4bit
+            run_config["batch_size"] = 16  # this is high because we use 4bit
         elif config["label"] == "40_80_b":
             run_config["batch_size"] = 2
-            
-                
+
         elif config["label"] == "13_15_b":
             run_config["batch_size"] = 12
-    
+
     total_batch_size = run_config["batch_size"] * run_config["gpu_nums"]
     if total_batch_size < 64:
         run_config["gradient_accumulation_steps"] = min(4, int(64 / total_batch_size))
-    
+
     run_config["eval_batch_size"] = 4
     if run_config["batch_size"] <= 4:
         run_config["eval_batch_size"] = 2
-    
+
     if not config.get("use_vllm", True):
         run_config["use_vllm"] = False
 
-    if model_name in ["unsloth/gemma-2-9b-it"]:
-        run_config["learning_rate"] = 1e-5
-    if model_name in ["unsloth/codegemma-7b-it", "unsloth/gemma-1.1-2b-it"]:
-        run_config["learning_rate"] = 2.5e-5
-    if model_name in ["zake7749/gemma-2-2b-it-chinese-kyara-dpo", "unsloth/codegemma-2b"]:
-        run_config["learning_rate"] = 1e-5
-    if model_name in ["unsloth/codegemma-7b", "unsloth/gemma-7b-it"]:
-        run_config["learning_rate"] = 8e-6
-    
-    if train_info["find_lk_lr"]:
+    has_python_execution = contain_python_execution(train_info["dataset_type"])
+    if not has_python_execution:
+        allow_find_lk_lr = True
+    else:
+        allow_find_lk_lr = False
+
+    if train_info["find_lk_lr"] and allow_find_lk_lr:
         # get lr from lrs_lookup.py
-        lr = get_grpo_lr(model_name)
+        has_python_execution = contain_python_execution(train_info["dataset_type"])
+        if not has_python_execution:
+            lr = get_grpo_lr(model_name)
+            print(f"Using lr from lk not python: {lr}", flush=True)
+        else:
+            lr = get_grpo_python_lr(model_name)
+            print(f"Using lr from lk python: {lr}", flush=True)
         if lr is not None:
             print(f"Using lr from lk: {lr}", flush=True)
             run_config["learning_rate"] = lr
         else:
             print(f"Using lr from config: {run_config['learning_rate']}", flush=True)
-    
+
     run_config["learning_rate"] *= train_info["reg_ratio"]
-        
+
     run_cmd = get_run_cmd(run_config, run_config["gpu_nums"])
-    
-    return {
-        "train_request": train_request,
-        "run_cmd": run_cmd
-    }
+
+    return {"train_request": train_request, "run_cmd": run_cmd}
