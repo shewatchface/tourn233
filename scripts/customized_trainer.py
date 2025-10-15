@@ -70,13 +70,14 @@ class CustomEvalSaveCallback(TrainerCallback):
             control.should_evaluate = False
             control.should_save = False
             if when_to_eval["reason"] == "end_time":
-                control.should_training_stop = True
                 if not self.has_checkpoint: # if there is no checkpoint, we just save the model, do not evaluate
                     print(f"No checkpoint found, just save the model at step: {state.global_step}", flush=True)
                     control.should_evaluate = False
                     control.should_save = True
                     self.save_only = True
-                    
+
+                control.should_training_stop = True
+
             elif when_to_eval["reason"] == "epoch":
                 control.should_evaluate = False
                 control.should_save = True
