@@ -67,26 +67,13 @@ class CustomEvalSaveCallback(TrainerCallback):
             # do not allow the pod to be stopped by any reason 
                 # first check if there is at least one checkpoint or not 
             print(f"Evaluating the model at step: {state.global_step} the reason: {when_to_eval['reason']}", flush=True)
-            control.should_evaluate = False
-            control.should_save = False
+            control.should_evaluate = True
+            control.should_save = True
             if when_to_eval["reason"] == "end_time":
                 if not self.has_checkpoint: # if there is no checkpoint, we just save the model, do not evaluate
                     print(f"No checkpoint found, just save the model at step: {state.global_step}", flush=True)
-                    control.should_evaluate = True
-                    control.should_save = True
-                    # self.save_only = True
-
-                control.should_training_stop = True
-
-            elif when_to_eval["reason"] == "epoch":
-                control.should_evaluate = True
-                control.should_save = True
-                # self.save_only = True
-
-            elif when_to_eval["reason"] == "periodic":
-                control.should_evaluate = True
-                control.should_save = True
-                # self.save_only = True
+                    control.should_evaluate = False
+                    self.save_only = True
         return control
 
 
